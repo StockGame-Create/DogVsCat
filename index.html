@@ -342,6 +342,90 @@
                 transform: translateY(100vh) rotate(360deg);
             }
         }
+        .chat-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    height: 500px;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    z-index: 150;
+    border: 2px solid rgba(255,255,255,0.2);
+}
+
+.chat-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 18px 18px 0 0;
+    color: white;
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-message {
+    padding: 10px 15px;
+    border-radius: 15px;
+    word-wrap: break-word;
+}
+
+.chat-message.dog {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    align-self: flex-start;
+}
+
+.chat-message.cat {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    align-self: flex-end;
+}
+
+.chat-team {
+    font-size: 12px;
+    opacity: 0.8;
+    margin-bottom: 5px;
+}
+
+.chat-input-container {
+    padding: 15px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.chat-input {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 25px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-size: 14px;
+}
+
+.chat-input::placeholder {
+    color: rgba(255,255,255,0.5);
+}
+
+.chat-disabled {
+    text-align: center;
+    padding: 20px;
+    color: rgba(255,255,255,0.6);
+    font-size: 14px;
+}
     </style>
 </head>
 <body>
@@ -364,16 +448,25 @@
     <div class="container">
         <div class="side dog-side" id="dogSide">
             <div class="icon">🐕</div>
-            <button class="vote-btn dog-btn" id="dogBtn" onclick="vote('dog')">Vote Dog</button>
+           <button class="vote-btn dog-btn" id="dogBtn" onclick="vote('dog')" disabled>Vote Dog</button>
             <div class="timer" id="dogTimer"></div>
         </div>
         
         <div class="side cat-side" id="catSide">
             <div class="icon">🐱</div>
-            <button class="vote-btn cat-btn" id="catBtn" onclick="vote('cat')">Vote Cat</button>
+<button class="vote-btn cat-btn" id="catBtn" onclick="vote('cat')" disabled>Vote Cat</button>
             <div class="timer" id="catTimer"></div>
         </div>
     </div>
+    <div class="chat-container">
+    <div class="chat-header">Team Chat 💬</div>
+    <div class="chat-messages" id="chatMessages">
+        <div class="chat-disabled" id="chatDisabled">Pick a team to chat!</div>
+    </div>
+    <div class="chat-input-container" id="chatInputContainer" style="display: none;">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." maxlength="100">
+    </div>
+</div>
     
     <div class="result-overlay" id="resultOverlay">
         <div class="result-content">
@@ -395,7 +488,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, get, onValue, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getDatabase, ref, set, get, onValue, update, push } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
         const firebaseConfig = {
             apiKey: "AIzaSyBZOVK7xSEUL_r8azbqtW38AIWdhN5ocSc",
@@ -479,6 +572,14 @@ if (gameEnded) {
             
             checkGameStatus();
             startMainTimer();
+
+            // Firebase 로드 완료 후 버튼 활성화
+if (!gameEnded && !userChoice) {
+    document.getElementById('dogBtn').disabled = false;
+    document.getElementById('catBtn').disabled = false;
+} else if (!gameEnded && userChoice) {
+    document.getElementById(userChoice + 'Btn').disabled = false;
+}
         }
         
         function checkGameStatus() {
@@ -542,22 +643,23 @@ if (gameEnded) {
             }
         }
         
-        async function vote(choice) {
-            if (gameEnded) return;
-            
-            const now = Date.now();
-            
-            // 첫 투표 시 선택 저장 및 애니메이션
-            if (!userChoice) {
-                userChoice = choice;
-                localStorage.setItem('userChoice', choice);
-                applyChoiceAnimation(choice);
-            }
-            
-            // 다른 팀에 투표 시도 시 차단
-            if (userChoice !== choice) {
-                return;
-            }
+    
+async function vote(choice) {
+    if (gameEnded) return;
+    
+    // 첫 투표 시 즉시 선택 저장 (애니메이션보다 먼저!)
+    if (!userChoice) {
+        userChoice = choice;
+        localStorage.setItem('userChoice', choice);
+        applyChoiceAnimation(choice);
+    }
+    
+    // 다른 팀에 투표 시도 시 차단
+    if (userChoice !== choice) {
+        return;
+    }
+    
+    const now = Date.now();
             
             // 쿨다운 체크
             if (userLastVoteTime && (now - userLastVoteTime < VOTE_COOLDOWN)) {
@@ -581,24 +683,32 @@ if (gameEnded) {
             startCooldownTimer(choice);
         }
         
-        function applyChoiceAnimation(choice) {
-            const dogSide = document.getElementById('dogSide');
-            const catSide = document.getElementById('catSide');
-            
-            if (choice === 'dog') {
-                catSide.classList.add('slide-out-right');
-                dogSide.classList.add('expand');
-                setTimeout(() => {
-                    catSide.style.display = 'none';
-                }, 1000);
-            } else {
-                dogSide.classList.add('slide-out-left');
-                catSide.classList.add('expand');
-                setTimeout(() => {
-                    dogSide.style.display = 'none';
-                }, 1000);
-            }
-        }
+function applyChoiceAnimation(choice) {
+    const dogSide = document.getElementById('dogSide');
+    const catSide = document.getElementById('catSide');
+    const dogBtn = document.getElementById('dogBtn');
+    const catBtn = document.getElementById('catBtn');
+    
+    // 애니메이션 시작 즉시 모든 버튼 비활성화
+    dogBtn.disabled = true;
+    catBtn.disabled = true;
+    
+    if (choice === 'dog') {
+        catSide.classList.add('slide-out-right');
+        dogSide.classList.add('expand');
+        setTimeout(() => {
+            catSide.style.display = 'none';
+            dogBtn.disabled = false; // 애니메이션 끝나면 선택한 버튼만 활성화
+        }, 1000);
+    } else {
+        dogSide.classList.add('slide-out-left');
+        catSide.classList.add('expand');
+        setTimeout(() => {
+            dogSide.style.display = 'none';
+            catBtn.disabled = false; // 애니메이션 끝나면 선택한 버튼만 활성화
+        }, 1000);
+    }
+}
         
         function startCooldownTimer(choice) {
             const timerDiv = document.getElementById(choice + 'Timer');
@@ -619,6 +729,58 @@ if (gameEnded) {
                 }
             }, 100);
         }
+
+        // initializeGame 함수 안에 추가
+onValue(ref(database, 'chat'), (snapshot) => {
+    const messages = snapshot.val();
+    displayMessages(messages);
+});
+
+// 새 함수들 추가
+function displayMessages(messages) {
+    const container = document.getElementById('chatMessages');
+    container.innerHTML = '';
+    
+    if (!messages) return;
+    
+    Object.values(messages).sort((a, b) => a.timestamp - b.timestamp).forEach(msg => {
+        const div = document.createElement('div');
+        div.className = `chat-message ${msg.team}`;
+        div.innerHTML = `<div class="chat-team">${msg.team === 'dog' ? '🐕 Dog Team' : '🐱 Cat Team'}</div>${msg.message}`;
+        container.appendChild(div);
+    });
+    
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendMessage() {
+    if (!userChoice) return;
+    
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    const chatRef = ref(database, 'chat');
+    const newMessageRef = push(chatRef);
+    
+    await set(newMessageRef, {
+        team: userChoice,
+        message: message,
+        timestamp: Date.now()
+    });
+    
+    input.value = '';
+}
+
+// applyChoiceAnimation 함수 안에 추가
+document.getElementById('chatDisabled').style.display = 'none';
+document.getElementById('chatInputContainer').style.display = 'block';
+
+// Enter 키로 전송
+document.getElementById('chatInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
         
         function startMainTimer() {
             const timerDiv = document.getElementById('mainTimer');
