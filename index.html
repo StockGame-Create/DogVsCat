@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dog vs Cat Vote!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .main-timer {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 200;
+            text-align: center;
+        }
+        
+        .main-timer-label {
+            color: rgba(255,255,255,0.9);
+            font-size: 14px;
+            margin-bottom: 5px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .main-timer-value {
+            color: white;
+            font-size: 36px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .scoreboard {
+            position: fixed;
+            top: 120px;
+            left: 0;
+            right: 0;
+            height: 100px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 40px;
+            z-index: 100;
+        }
+        
+        .score-item {
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            border: 2px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .score-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+        }
+        
+        .score-label {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        .score-value {
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 3px 10px rgba(0,0,0,0.4);
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            padding-top: 240px;
+        }
+        
+        .side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            transition: all 0.5s ease;
+        }
+        
+        .side:hover:not(.disabled) {
+            filter: brightness(1.1);
+        }
+        
+        .side.disabled {
+            filter: grayscale(0.5) brightness(0.7);
+        }
+        
+        .side.slide-out-left {
+            animation: slideOutLeft 1s ease-out forwards;
+        }
+        
+        .side.slide-out-right {
+            animation: slideOutRight 1s ease-out forwards;
+        }
+        
+        .side.expand {
+            animation: expand 1s ease-out forwards;
+        }
+        
+        @keyframes slideOutLeft {
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes expand {
+            to {
+                flex: 2;
+            }
+        }
+        
+        .dog-side {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .cat-side {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .icon {
+            font-size: 140px;
+            margin-bottom: 30px;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+        
+        .vote-btn {
+            padding: 25px 60px;
+            font-size: 26px;
+            font-weight: bold;
+            border: none;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .vote-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .vote-btn:hover:not(:disabled)::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .vote-btn:hover:not(:disabled) {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+        
+        .vote-btn:active:not(:disabled) {
+            transform: translateY(-2px) scale(1.02);
+        }
+        
+        .vote-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .dog-btn {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+        }
+        
+        .cat-btn {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+        }
+        
+        .timer {
+            margin-top: 25px;
+            font-size: 20px;
+            color: white;
+            font-weight: bold;
+            min-height: 35px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.2);
+            padding: 10px 25px;
+            border-radius: 20px;
+        }
+        
+        .result-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .result-content {
+            text-align: center;
+            color: white;
+            animation: slideUp 0.8s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .result-title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .result-winner {
+            font-size: 120px;
+            margin-bottom: 30px;
+            animation: bounce 1s ease infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .result-message {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            text-shadow: 0 3px 10px rgba(0,0,0,0.5);
+        }
+        
+        .result-scores {
+            display: flex;
+            gap: 60px;
+            justify-content: center;
+            margin-top: 50px;
+        }
+        
+        .result-score-item {
+            background: rgba(255,255,255,0.1);
+            padding: 30px 50px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .result-score-label {
+            font-size: 24px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+        
+        .result-score-value {
+            font-size: 64px;
+            font-weight: bold;
+        }
+        
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            position: absolute;
+            animation: confetti-fall 3s linear infinite;
+        }
+        
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-timer">
+        <div class="main-timer-label">Vote Ends In...</div>
+        <div class="main-timer-value" id="mainTimer">12:00:00</div>
+    </div>
+    
+    <div class="scoreboard">
+        <div class="score-item">
+            <div class="score-label">🐕 Dog</div>
+            <div class="score-value" id="dogScore">0</div>
+        </div>
+        <div class="score-item">
+            <div class="score-label">🐱 Cat</div>
+            <div class="score-value" id="catScore">0</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="side dog-side" id="dogSide">
+            <div class="icon">🐕</div>
+            <button class="vote-btn dog-btn" id="dogBtn" onclick="vote('dog')">Vote Dog</button>
+            <div class="timer" id="dogTimer"></div>
+        </div>
+        
+        <div class="side cat-side" id="catSide">
+            <div class="icon">🐱</div>
+            <button class="vote-btn cat-btn" id="catBtn" onclick="vote('cat')">Vote Cat</button>
+            <div class="timer" id="catTimer"></div>
+        </div>
+    </div>
+    
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-content">
+            <div class="result-title">Vote Ended!</div>
+            <div class="result-winner" id="resultWinner">🏆</div>
+            <div class="result-message" id="resultMessage">Winner!</div>
+            <div class="result-scores">
+                <div class="result-score-item">
+                    <div class="result-score-label">🐕 Dog</div>
+                    <div class="result-score-value" id="resultDogScore">0</div>
+                </div>
+                <div class="result-score-item">
+                    <div class="result-score-label">🐱 Cat</div>
+                    <div class="result-score-value" id="resultCatScore">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get, onValue, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZOVK7xSEUL_r8azbqtW38AIWdhN5ocSc",
+            authDomain: "catvsdog-b3133.firebaseapp.com",
+            databaseURL: "https://catvsdog-b3133-default-rtdb.firebaseio.com",
+            projectId: "catvsdog-b3133",
+            storageBucket: "catvsdog-b3133.firebasestorage.app",
+            messagingSenderId: "385858522273",
+            appId: "1:385858522273:web:b7d433ad6c6508c868f4e0",
+            measurementId: "G-MDSZPR6MKC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        
+        const VOTE_COOLDOWN = 2 * 60 * 1000; // 2분
+        const GAME_DURATION = 12 * 60 * 60 * 1000; // 12시간
+        
+        let gameStartTime = null;
+        let userLastVoteTime = null;
+        let userChoice = null; // 사용자가 선택한 팀
+        let gameEnded = false;
+        
+        // Firebase에서 게임 시작 시간 초기화 또는 가져오기
+        async function initializeGame() {
+            const gameRef = ref(database, 'game');
+            const snapshot = await get(gameRef);
+            
+            // 로컬 스토리지에서 사용자 선택 및 마지막 투표 시간 복원
+            const savedChoice = localStorage.getItem('userChoice');
+            const savedLastVoteTime = localStorage.getItem('userLastVoteTime');
+            
+            if (savedChoice) {
+                userChoice = savedChoice;
+                applyChoiceAnimation(userChoice);
+            }
+            
+            if (savedLastVoteTime) {
+                userLastVoteTime = parseInt(savedLastVoteTime);
+                // 쿨다운이 아직 유효한지 확인하고 타이머 시작
+                if (Date.now() - userLastVoteTime < VOTE_COOLDOWN) {
+                    startCooldownTimer(userChoice);
+                }
+            }
+            
+            if (!snapshot.exists()) {
+                // 게임이 처음 시작되는 경우
+                gameStartTime = Date.now();
+                await set(gameRef, {
+                    startTime: gameStartTime,
+                    dogVotes: 0,
+                    catVotes: 0,
+                    ended: false
+                });
+            } else {
+                // 기존 게임 데이터 로드
+// 기존 게임 데이터 로드
+const data = snapshot.val();
+gameStartTime = data.startTime;
+gameEnded = data.ended || false;
+
+// 게임이 이미 종료되었다면 바로 결과 표시
+if (gameEnded) {
+    showResults(data.dogVotes || 0, data.catVotes || 0);
+}
+            }
+            
+            // 실시간 투표 수 업데이트 리스너
+            onValue(ref(database, 'game'), (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    document.getElementById('dogScore').textContent = data.dogVotes || 0;
+                    document.getElementById('catScore').textContent = data.catVotes || 0;
+                    
+                    if (data.ended && !gameEnded) {
+                        gameEnded = true;
+                        showResults(data.dogVotes || 0, data.catVotes || 0);
+                    }
+                }
+            });
+            
+            checkGameStatus();
+            startMainTimer();
+        }
+        
+        function checkGameStatus() {
+            const elapsed = Date.now() - gameStartTime;
+            if (elapsed >= GAME_DURATION && !gameEnded) {
+                endGame();
+            }
+        }
+        
+        async function endGame() {
+            gameEnded = true;
+            const gameRef = ref(database, 'game');
+            const snapshot = await get(gameRef);
+            const data = snapshot.val();
+            
+            await update(gameRef, { ended: true });
+            showResults(data.dogVotes || 0, data.catVotes || 0);
+        }
+        
+        function showResults(dogVotes, catVotes) {
+            const overlay = document.getElementById('resultOverlay');
+            const winner = document.getElementById('resultWinner');
+            const message = document.getElementById('resultMessage');
+            
+            document.getElementById('resultDogScore').textContent = dogVotes;
+            document.getElementById('resultCatScore').textContent = catVotes;
+            
+            if (dogVotes > catVotes) {
+                winner.textContent = '🐕';
+                message.textContent = 'Dog Team Won!';
+            } else if (catVotes > dogVotes) {
+                winner.textContent = '🐱';
+                message.textContent = 'Cat Team Won!';
+            } else {
+                winner.textContent = '🤝';
+                message.textContent = 'Tie!';
+            }
+            
+            overlay.style.display = 'flex';
+            document.getElementById('dogSide').classList.add('disabled');
+            document.getElementById('catSide').classList.add('disabled');
+            document.getElementById('dogBtn').disabled = true;
+            document.getElementById('catBtn').disabled = true;
+            
+            createConfetti();
+        }
+        
+        function createConfetti() {
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#ffd700'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 3 + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 50);
+            }
+        }
+        
+        async function vote(choice) {
+            if (gameEnded) return;
+            
+            const now = Date.now();
+            
+            // 첫 투표 시 선택 저장 및 애니메이션
+            if (!userChoice) {
+                userChoice = choice;
+                localStorage.setItem('userChoice', choice);
+                applyChoiceAnimation(choice);
+            }
+            
+            // 다른 팀에 투표 시도 시 차단
+            if (userChoice !== choice) {
+                return;
+            }
+            
+            // 쿨다운 체크
+            if (userLastVoteTime && (now - userLastVoteTime < VOTE_COOLDOWN)) {
+                return;
+            }
+            
+            // Firebase에 투표 추가
+            const gameRef = ref(database, 'game');
+            const snapshot = await get(gameRef);
+            const data = snapshot.val();
+            
+            const voteField = choice === 'dog' ? 'dogVotes' : 'catVotes';
+            const newVotes = (data[voteField] || 0) + 1;
+            
+            await update(gameRef, {
+                [voteField]: newVotes
+            });
+            
+            userLastVoteTime = now;
+            localStorage.setItem('userLastVoteTime', now.toString());
+            startCooldownTimer(choice);
+        }
+        
+        function applyChoiceAnimation(choice) {
+            const dogSide = document.getElementById('dogSide');
+            const catSide = document.getElementById('catSide');
+            
+            if (choice === 'dog') {
+                catSide.classList.add('slide-out-right');
+                dogSide.classList.add('expand');
+                setTimeout(() => {
+                    catSide.style.display = 'none';
+                }, 1000);
+            } else {
+                dogSide.classList.add('slide-out-left');
+                catSide.classList.add('expand');
+                setTimeout(() => {
+                    dogSide.style.display = 'none';
+                }, 1000);
+            }
+        }
+        
+        function startCooldownTimer(choice) {
+            const timerDiv = document.getElementById(choice + 'Timer');
+            const btnDiv = document.getElementById(choice + 'Btn');
+            btnDiv.disabled = true;
+            
+            const interval = setInterval(() => {
+                const remaining = VOTE_COOLDOWN - (Date.now() - userLastVoteTime);
+                
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    timerDiv.textContent = 'Vote Available!';
+                    btnDiv.disabled = gameEnded;
+                } else {
+                    const minutes = Math.floor(remaining / 60000);
+                    const seconds = Math.floor((remaining % 60000) / 1000);
+                    timerDiv.textContent = `Next Vote Available On...${minutes}M ${seconds}S`;
+                }
+            }, 100);
+        }
+        
+        function startMainTimer() {
+            const timerDiv = document.getElementById('mainTimer');
+            
+            const interval = setInterval(() => {
+                const remaining = GAME_DURATION - (Date.now() - gameStartTime);
+                
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    timerDiv.textContent = '00:00:00';
+                    if (!gameEnded) {
+                        endGame();
+                    }
+                } else {
+                    const hours = Math.floor(remaining / 3600000);
+                    const minutes = Math.floor((remaining % 3600000) / 60000);
+                    const seconds = Math.floor((remaining % 60000) / 1000);
+                    timerDiv.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+            }, 100);
+        }
+        
+        // 전역 함수로 노출
+        window.vote = vote;
+        
+        // 게임 초기화
+        initializeGame();
+    </script>
+</body>
+</html>
